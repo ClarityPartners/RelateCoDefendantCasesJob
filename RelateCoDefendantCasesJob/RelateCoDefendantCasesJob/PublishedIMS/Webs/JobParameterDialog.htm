@@ -13,295 +13,355 @@
   <script language="VBScript" src="/Common/Scripts/PostCallbackSetInitialFocus.vbs"></script>
 
   <script language="VBScript">
-Option Explicit
+    Option Explicit
 
-' TODO: Replace Job Task Name
-Const JOB_TASK_NAME = "Job Task Name"
+    ' TODO: Replace Job Task Name
+    Const JOB_TASK_NAME = "RelateCoDefendantCasesJob"
 
-Dim g_sJobMode
-Dim g_oTaskXML
+    Dim g_sJobMode
+    Dim g_oTaskXML
 
-Sub InitializePage()
-  Dim oTaskXML
-  external.MessageArea.doAttention = True
-  external.MessageArea.visible = False
-  Call external.ShellMessages.Clear()
+    Sub InitializePage()
+    Dim oTaskXML
+    external.MessageArea.doAttention = True
+    external.MessageArea.visible = False
+    Call external.ShellMessages.Clear()
 
-  Dim oStash
-  Set oStash = external.ProductStash.Item("JobParms").Children
+    Dim oStash
+    Set oStash = external.ProductStash.Item("JobParms").Children
 
-  If Not oStash.Item("Mode") Is Nothing Then
+    If Not oStash.Item("Mode") Is Nothing Then
     g_sJobMode = oStash.Item("Mode").value
-  End If
+    End If
 
-  If Not oStash.Item("TaskXML") Is Nothing Then
+    If Not oStash.Item("TaskXML") Is Nothing Then
     Set g_oTaskXML = oStash.Item("TaskXML").value
-  End If
+    End If
 
-  'comment this line to allow F5 refresh
-  'external.ProductStash.Remove("JobParms")
+    'comment this line to allow F5 refresh
+    'external.ProductStash.Remove("JobParms")
 
-  external.WaitWindow.text = "Please Wait"
-  external.WaitWindow.Show
+    external.WaitWindow.text = "Please Wait"
+    external.WaitWindow.Show
 
-  Call LoadCache()
-End Sub
+    Call LoadCache()
+    End Sub
 
-Sub LoadCache()
-  Dim oTask : Set oTask = external.ShellTasks.Add
+    Sub LoadCache()
+    Dim oTask : Set oTask = external.ShellTasks.Add
 
-  oTask.OnComplete = GetRef("OnTaskComplete")
-  oTask.OnError = GetRef("OnTaskError")
+    oTask.OnComplete = GetRef("OnTaskComplete")
+    oTask.OnError = GetRef("OnTaskError")
 
-  Dim Request : Set Request = oTask.AddCacheUpdateServiceRequest
+    Dim Request : Set Request = oTask.AddCacheUpdateServiceRequest
 
-  Call oTask.Execute()
-End Sub
+    Call oTask.Execute()
+    End Sub
 
-Sub OnTaskError(oTask)
+    Sub OnTaskError(oTask)
 
-End Sub
+    End Sub
 
-Sub OnTaskComplete(oTask)
-  Select Case g_sJobMode
+    Sub OnTaskComplete(oTask)
+    Select Case g_sJobMode
     Case "VIEW"
-      Call SetupViewMode()
+    Call SetupViewMode()
     Case "EDIT"
-      Call SetupEditMode()
+    Call SetupEditMode()
     Case "ADD"
-      Call SetupAddMode()
-  End Select
+    Call SetupAddMode()
+    End Select
 
-  divModalBody.style.display = "block"
+    divModalBody.style.display = "block"
 
-  Call external.WaitWindow.Close()
+    Call external.WaitWindow.Close()
 
-  If g_sJobMode <> "VIEW" Then
-    Call SetPostCallbackFocusControl(txtCaseNumber)
-  End If
-End Sub
+    If g_sJobMode <> "VIEW" Then
+    'Call SetPostCallbackFocusControl(txtCaseNumber)
 
-Sub PopulateControls()
-  Dim oNode, oParmXML
-  Set oParmXML = g_oTaskXML
+    End If
+    End Sub
 
-  Set oNode = oParmXML.selectSingleNode("Params")
+    Sub PopulateControls()
+    Dim oNode, oParmXML
+    Set oParmXML = g_oTaskXML
 
-  If Not oNode Is Nothing Then
-    txtCaseNumber.value = oNode.GetAttribute("CaseNumber") & vbNullString
-    txtNodeID.value = oNode.GetAttribute("NodeID") & vbNullString
-    txtEventCode.value = oNode.GetAttribute("EventCode") & vbNullString
-  End If
-End Sub
+    Set oNode = oParmXML.selectSingleNode("Params")
 
-Sub DisablePage()
-  txtCaseNumber.disabled = True
-  txtNodeID.disabled = True
-  txtEventCode.disabled = True
-End Sub
+    If Not oNode Is Nothing Then
+    dbxAsOfDate.Value = oNode.GetAttribute("RelativeAsOfDateStart")
+    dbxAsOfDateEnd.Value = oNode.GetAttribute("RelativeAsOfDateEnd")
+    End If
+    End Sub
 
-Sub SetupAddMode()
-  divModalTitle.innerHTML = JOB_TASK_NAME
+    Sub DisablePage()
+    'txtCaseNumber.disabled = True
+    'txtNodeID.disabled = True
+    'txtEventCode.disabled = True
+    dbxAsOfDate.disabled = True
+    dbxAsOfDateEnd.disabled = True
+    End Sub
 
-  Call PopulateControlsFromRegistry()
-End Sub
+    Sub SetupAddMode()
+    divModalTitle.innerHTML = JOB_TASK_NAME
 
-Sub SetupEditMode()
-  divModalTitle.innerHTML = "Modify " & JOB_TASK_NAME
+    Call PopulateControlsFromRegistry()
+    End Sub
 
-  Call PopulateControls()
-End Sub
+    Sub SetupEditMode()
+    divModalTitle.innerHTML = "Modify " & JOB_TASK_NAME
 
-Sub SetupViewMode()
-  divModalTitle.innerHTML = "View " & JOB_TASK_NAME
-  btnFinish.style.display = "none"
-  btnCancel.style.display = "none"
-  btnExit.style.display = "inline"
+    Call PopulateControls()
+    End Sub
 
-  Call PopulateControls()
-  Call DisablePage()
-End Sub
+    Sub SetupViewMode()
+    divModalTitle.innerHTML = "View " & JOB_TASK_NAME
+    btnFinish.style.display = "none"
+    btnCancel.style.display = "none"
+    btnExit.style.display = "inline"
 
-Sub MeridianOnClose
-  Call btnCancelClick()
-End Sub
+    Call PopulateControls()
+    Call DisablePage()
+    End Sub
 
-Sub btnExitClick()
-  Call external.CloseDialog(0, 0)
-End Sub
+    Sub MeridianOnClose
+    Call btnCancelClick()
+    End Sub
 
-Sub btnCancelClick()
-  If IsDirty() Then
+    Sub btnExitClick()
+    Call external.CloseDialog(0, 0)
+    End Sub
+
+    Sub btnCancelClick()
+    If IsDirty() Then
     If External.InfoBox("Changes will NOT be saved." & vbCrLf & _
                    "Do you want to continue?", _
                    "Warning", _
                    vbYesNo + vbDefaultButton2 + vbExclamation) = vbYes Then
-      Call external.CloseDialog(0, 0)
-    End If
-  Else
     Call external.CloseDialog(0, 0)
-  End If
-End Sub
+    End If
+    Else
+    Call external.CloseDialog(0, 0)
+    End If
+    End Sub
 
-Sub btnFinishClick()
-  external.MessageArea.doAttention = False
-  Call external.ShellMessages.Clear()
-  external.MessageArea.visible = False
+    Sub btnFinishClick()
+    external.MessageArea.doAttention = False
+    Call external.ShellMessages.Clear()
+    external.MessageArea.visible = False
 
-  If ValidateRequiredFields() Then
+    If ValidateRequiredFields() Then
     Call UpdateTaskXML(g_oTaskXML)
 
     Call external.CloseDialog(0, 2)
-  End If
-End Sub
+    End If
+    End Sub
 
-Function IsDirty()
-  IsDirty = False
+    Function IsDirty()
+    IsDirty = False
 
-  If Len(txtCaseNumber.value) > 0     Or _
-     Len(txtNodeID.value) > 0 Or _
-     Len(txtEventCode.value) > 0    Then
-     IsDirty = True
-  End If
-End Function
+    'If Len(txtCaseNumber.value) > 0     Or _
+    '   Len(txtNodeID.value) > 0 Or _
+    '   Len(txtEventCode.value) > 0    Then
+    '   IsDirty = True
+    'End If
+    End Function
 
-Function ValidateRequiredFields()
-  Call txtCaseNumber.Validate(True)
-  Call txtNodeID.Validate(True)
-  Call txtEventCode.Validate(True)
+    Function ValidateRequiredFields()
 
-  'Show errors if they exist
-  If external.ShellMessages.count > 0 Then
+    Call dbxAsOfDate.Validate(True)
+    call dbxAsOfDateEnd.Validate(True)
+    'Show errors if they exist
+    If external.ShellMessages.count > 0 Then
     external.ShellMessages.ResetAttention
     external.MessageArea.doAttention = True
     external.MessageArea.visible = True
 
     ValidateRequiredFields = False
-  Else
+    Else
     ValidateRequiredFields = True
-  End If
+    End If
 
-End Function
+    End Function
 
-Sub PopulateControlsFromRegistry()
-  Dim oNode, oParmXML, oRegXML, strRegXML
-  Set oParmXML = g_oTaskXML
+    Sub PopulateControlsFromRegistry()
+    Dim oParmXML, oRegXML, strRegXML, oNode
+    Set oParmXML = g_oTaskXML
 
-  If g_sJobMode = "ADD" and g_oTaskXML.childNodes.length = 0 Then
+    If g_sJobMode = "ADD" and g_oTaskXML.childNodes.length = 0 Then
     ' We are in add mode and there are currently no values in
     ' the parameter xml.  So try to read the defaults from the registry.
     strRegXML = vbNullString
 
     On Error Resume Next
-      strRegXML = external.MOM.ShellRegistry.ReadValue(2, "Infrastructure\FileTransform", "FileTransform")
+    strRegXML = external.MOM.ShellRegistry.ReadValue(2, "Infrastructure\FileTransform", "FileTransform")
     On Error Goto 0
 
     If Len(strRegXML) > 0 Then
-      Set oRegXML             = CreateObject("MSXML2.DOMDocument")
-      oRegXML.async           = False
-      oRegXML.ValidateOnParse = False
+    Set oRegXML             = CreateObject("MSXML2.DOMDocument")
+    oRegXML.async = False
+    oRegXML.ValidateOnParse = False
 
-      If oRegXML.loadXML(strRegXML) Then
-        Set oParmXML = oRegXML.documentElement
-      End If
+    If oRegXML.loadXML(strRegXML) Then
+    Set oParmXML = oRegXML.documentElement
     End If
-  End If
+    End If
+    End If
 
-  Set oNode = oParmXML.selectSingleNode("Params")
+    Set oNode = oParmXML.selectSingleNode("Params")
 
-  If Not oNode Is Nothing Then
-    txtCaseNumber.value = oNode.GetAttribute("CaseNumber") & vbNullString
-    txtNodeID.value = oNode.GetAttribute("NodeID") & vbNullString
-    txtEventCode.value = oNode.GetAttribute("EventCode") & vbNullString
-  End If
-End Sub
+    If Not oNode Is Nothing Then
+    If Len(oNode.GetAttribute("RelativeAsOfDateStart")) > 0 Then
+    dbxAsOfDate.Value = oNode.GetAttribute("RelativeAsOfDateStart")
+    End If
 
-Sub UpdateTaskXML(oTaskXML)
-  Dim oNode
-  Dim strRegXML
+    If Len(oNode.GetAttribute("RelativeAsOfDateEnd")) > 0 Then
+    dbxAsOfDateEnd.Value = oNode.GetAttribute("RelativeAsOfDateEnd")
+    End If
+    End If
+    End Sub
 
-  For Each oNode in oTaskXML.childNodes
+    Sub UpdateTaskXML(oTaskXML)
+    Dim oNode
+    Dim strRegXML
+
+    For Each oNode in oTaskXML.childNodes
     oTaskXML.removeChild oNode
-  Next
+    Next
 
-  Set oNode = oTaskXML.ownerDocument.createElement("Params")
+    Set oNode = oTaskXML.ownerDocument.createElement("Params")
 
-  If Not oNode is Nothing Then
-    Call oNode.SetAttribute("CaseNumber", txtCaseNumber.value)
-    Call oNode.SetAttribute("NodeID", txtNodeID.value)
-    Call oNode.SetAttribute("EventCode", txtEventCode.value)
-    Call oTaskXML.AppendChild( oNode )
-  End If
+    If Not oNode is Nothing Then
+    Call oNode.SetAttribute("RelativeAsOfDateStart", dbxAsOfDate.Value)
+    Call oNode.SetAttribute("RelativeAsOfDateEnd", dbxAsOfDateEnd.Value)
+    Call oTaskXML.AppendChild(oNode)
+    End If
 
-  If oTaskXML.childNodes.length > 0 Then
+    If oTaskXML.childNodes.length > 0 Then
     strRegXML = "<Parms>"
 
     For Each oNode in oTaskXML.childNodes
-      strRegXML = strRegXML & oNode.xml
+    strRegXML = strRegXML & oNode.xml
     Next
 
     strRegXML = strRegXML & "</Parms>"
-  Else
+    Else
     strRegXML = ""
-  End If
+    End If
 
-  Call external.MOM.ShellRegistry.WriteValue(2, "Infrastructure\FileTransform", "FileTransform", strRegXML)
-End Sub
+    Call external.MOM.ShellRegistry.WriteValue(2, "Infrastructure\FileTransform", "FileTransform", strRegXML)
+    End Sub
 
-Function GetTaskXMLNode(sName)
-  Dim oNode
-  Set oNode = g_oTaskXML.SelectSingleNode(sName)
+    Function GetTaskXMLNode(sName)
+    Dim oNode
+    Set oNode = g_oTaskXML.SelectSingleNode(sName)
 
-  If oNode Is Nothing Then
+    If oNode Is Nothing Then
     Set oNode = g_oTaskXML.OwnerDocument.CreateElement(sName)
 
     Call g_oTaskXML.AppendChild(oNode)
-  End If
+    End If
 
-  Set GetTaskXMLNode = oNode
-End Function
+    Set GetTaskXMLNode = oNode
+    End Function
 
-Sub MeridianOnMessageClick(oMessage)
-  Dim sFieldName
-  Dim aElements
+    Sub MeridianOnMessageClick(oMessage)
+    Dim sFieldName
+    Dim aElements
 
-  If Not (oMessage Is Nothing) Then
+    If Not (oMessage Is Nothing) Then
     sFieldName = Trim(oMessage.tagID)
 
     If Len(sFieldName) > 0 Then
-      If InStr(sFieldName, "_") Then
-        aElements = Split(sFieldName, "_")
+    If InStr(sFieldName, "_") Then
+    aElements = Split(sFieldName, "_")
 
-        Call GiveFieldFocus(aElements(0))
-      Else
-        Call GiveFieldFocus(sFieldName)
-      End If
+    Call GiveFieldFocus(aElements(0))
+    Else
+    Call GiveFieldFocus(sFieldName)
     End If
-  End If
-End Sub
+    End If
+    End If
+    End Sub
 
-Sub GiveFieldFocus(sFieldName)
-  On Error Resume Next
+    Sub GiveFieldFocus(sFieldName)
+    On Error Resume Next
 
-  Dim oElt
-  Set oElt = document.GetElementById(sFieldName)
+    Dim oElt
+    Set oElt = document.GetElementById(sFieldName)
 
-  If Not oElt Is Nothing Then
+    If Not oElt Is Nothing Then
     oElt.Focus
 
     If oElt.IsTextEdit Or oElt.TagName = "datebox" Then
-      oElt.Select
+    oElt.Select
     End If
 
     Set oElt = Nothing
-  End If
-End Sub
+    End If
+    End Sub
 
-Function MeridianGetHelpContext()
-  MeridianGetHelpContext = ""
-End Function
+    Function MeridianGetHelpContext()
+    MeridianGetHelpContext = ""
+    End Function
 
+    Sub SetDateLabel()
+    If IsDate(dbxAsOfDate.GetAttribute("AsOfDate")) Then
+    lblAsOfDate.InnerHtml = FormatDateTime(dbxAsOfDate.GetAttribute("AsOfDate"), 1)
+    Else
+    lblAsOfDate.InnerHtml = ""
+    End If
+    End Sub
 
+    Sub SetEndDateLabel()
+    If IsDate(dbxAsOfDate.GetAttribute("AsOfDateEnd")) Then
+    lblAsOfDateEnd.InnerHtml = FormatDateTime(dbxAsOfDateEnd.GetAttribute("AsOfDateEnd"), 1)
+    Else
+    lblAsOfDateEnd.InnerHtml = ""
+    End If
+    End Sub
+
+    Sub CheckDateBox()
+    Dim oDateBoxControl: Set oDateBoxControl = Window.Event.srcElement
+    Dim oEvent: Set oEvent = Window.Event
+
+    If oEvent.IsValid Then
+    oDateBoxControl.ErrorState = False
+    oDateBoxControl.WarningState = False
+    oEvent.ReturnValue = False
+    End If
+
+    Call oDateBoxControl.SetAttribute("AsOfDate", Window.Event.FormattedValue)
+    End Sub
+
+    Sub CheckEndDateBox()
+    Dim oDateBoxControl: Set oDateBoxControl = Window.Event.srcElement
+    Dim oEvent: Set oEvent = Window.Event
+
+    If oEvent.IsValid Then
+    oDateBoxControl.ErrorState = False
+    oDateBoxControl.WarningState = False
+    oEvent.ReturnValue = False
+    End If
+
+    Call oDateBoxControl.SetAttribute("AsOfDateEnd", Window.Event.FormattedValue)
+    End Sub
+
+    Sub SetDateLabel()
+    If IsDate(dbxAsOfDate.GetAttribute("AsOfDate")) Then
+    lblAsOfDate.InnerHtml = FormatDateTime(dbxAsOfDate.GetAttribute("AsOfDate"), 1)
+    Else
+    lblAsOfDate.InnerHtml = ""
+    End If
+    End Sub
+
+    Sub SetEndDateLabel()
+    If IsDate(dbxAsOfDateEnd.GetAttribute("AsOfDateEnd")) Then
+    lblAsOfDateEnd.InnerHtml = FormatDateTime(dbxAsOfDateEnd.GetAttribute("AsOfDateEnd"), 1)
+    Else
+    lblAsOfDateEnd.InnerHtml = ""
+    End If
+    End Sub
   </script>
 
 </head>
@@ -319,24 +379,19 @@ End Function
   <div id="divModalBody" style="display: none; padding: 5px 12px;">
     <table cellspacing="0" cellpadding="0">
 
-      <tr style="padding-bottom: 1px;">
-        <td class="ssLabel" style="padding-left: 25px;">Case Number</td>
+      <tr style="padding-bottom: 5px">
+        <td class="ssLabel" style="width:100px">Filed Date From</td>
         <td>
-          <tyl:textbox id="txtCaseNumber" required="true" style="width: 290px" errorlabel="Case Number" errortag="txtCaseNumber" />
+          <tyl:datebox id="dbxAsOfDate" style="width: 100px" required="true" errorlabel="As Of Date" errortag="dbxAsOfDate" tabindex="3" title="" onAfterValidate="VBScript: Call CheckDateBox()" onValidationComplete="VBScript: Call SetDateLabel()"></tyl:datebox>
+          <label id="lblAsOfDate" class="ssLabel" style="padding-left: 8px;"></label>
         </td>
       </tr>
 
-      <tr style="padding-bottom: 1px;">
-        <td class="ssLabel" style="padding-left: 25px;">Node ID</td>
+      <tr style="padding-bottom: 5px">
+        <td class="ssLabel" style="width:100px">Filed Date To</td>
         <td>
-          <tyl:textbox id="txtNodeID" required="true" style="width: 290px" errorlabel="Node ID" errortag="txtNodeID" />
-        </td>
-      </tr>
-
-      <tr style="padding-bottom: 1px;">
-        <td class="ssLabel" style="padding-left: 25px;">Event Code</td>
-        <td>
-          <tyl:textbox id="txtEventCode" required="true" style="width: 290px" errorlabel="Event Code" errortag="txtEventCode" />
+          <tyl:datebox id="dbxAsOfDateEnd" style="width: 100px" required="true" errorlabel="As Of Date" errortag="dbxAsOfDateEnd" tabindex="3" title="" onAfterValidate="VBScript: Call CheckEndDateBox()" onValidationComplete="VBScript: Call SetEndDateLabel()"></tyl:datebox>
+          <label id="lblAsOfDateEnd" class="ssLabel" style="padding-left: 8px;"></label>
         </td>
       </tr>
 

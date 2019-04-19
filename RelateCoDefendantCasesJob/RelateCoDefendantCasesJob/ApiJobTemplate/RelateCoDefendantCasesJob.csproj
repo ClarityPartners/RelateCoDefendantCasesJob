@@ -83,6 +83,8 @@
   <ItemGroup>
     <Compile Include="Entities\AddCaseEventEntity.cs" />
     <Compile Include="Entities\AddCaseEventResultEntity.cs" />
+    <Compile Include="Entities\AddRelatedCase.cs" />
+    <Compile Include="Entities\AddRelatedCaseResult.cs" />
     <Compile Include="Entities\FindCaseByCaseNumberEntity.cs" />
     <Compile Include="Entities\FindCaseByCaseNumberResultEntity.cs" />
     <Compile Include="Exceptions\BaseCustomException.cs" />

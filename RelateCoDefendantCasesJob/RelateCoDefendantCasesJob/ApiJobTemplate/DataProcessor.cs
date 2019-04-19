@@ -15,6 +15,9 @@ using Tyler.Integration.Framework;
 using System.Xml.Serialization;
 using Tyler.Odyssey.API.Shared;
 using Tyler.Integration.General;
+using System.Data.SqlClient;
+using System.Data;
+using System.Collections.Generic;
 
 namespace RelateCoDefendantCasesJob
 {
@@ -75,14 +78,193 @@ namespace RelateCoDefendantCasesJob
     {
       Logger.WriteToLog("Beginning Run Method", LogLevel.Basic);
 
-      // TODO: Update API Processing Logic
       try
       {
-        string caseID = FindCase();
-        AddCaseEvent(caseID);
+
+        DateTime? dtStart = null;
+        DateTime? dtEnd = null;
+        //DateTime TempDate;
+
+        DateTime TempStartDate;
+        DateTime TempEndDate;
+
+        if (DateTime.TryParse(Context.Parameters.RelativeAsOfDateStart, out TempStartDate))//if success parse the date
+        {
+          dtStart = TempStartDate;
+        }
+        else
+        {
+          Logger.WriteToLog("Error bad scheduling Start Date.", LogLevel.Verbose);
+        }
+
+        if (DateTime.TryParse(Context.Parameters.RelativeAsOfDateEnd, out TempEndDate))//if success parse the date
+        {
+          dtEnd = TempEndDate;
+        }
+        else
+        {
+          Logger.WriteToLog("Error bad scheduling end date.", LogLevel.Verbose);
+        }
+
+        if (dtStart != null && dtEnd != null)
+        {
+          Logger.WriteToLog($"Proposed Start Date: {dtStart.ToString()}", LogLevel.Verbose);
+          Logger.WriteToLog($"Proposed End Date : {dtEnd.ToString()}", LogLevel.Verbose);
+
+
+        DataSet ds = GetSqlDataSet(DateTime.Today, DateTime.Today);
+        DataTable dataTable = ds.Tables[0];
+
+        Logger.WriteToLog($"DataTable Count: {dataTable.Rows.Count}", LogLevel.Verbose);
+
+        List<object> caseIdValues = new List<object>();
+        List<object> codefendantValues = new List<object>();
+
+        var tupleList = new List<Tuple<object, object>> { };
+
+          if (dataTable.Rows.Count > 0)
+          {
+
+            foreach (DataRow row in dataTable.Rows)
+            {
+              caseIdValues.Add(row["CaseID"]);
+              codefendantValues.Add(row["CrossReferenceNumber"]);
+
+              tupleList.Add(Tuple.Create(row["CaseID"], row["CrossReferenceNumber"]));
+            }
+
+            Logger.WriteToLog($"caseIDValues Count: {caseIdValues.Count}", LogLevel.Verbose);
+            Logger.WriteToLog($"codefendantValues Count: {codefendantValues.Count}", LogLevel.Verbose);
+            int outerIndex = 0;
+            int innerIndex = 0;
+            bool matched = false;
+            string CrossReferenceNumber = "";
+            string MasterCaseID = "";
+
+            //////////////////////////////////////
+            //Need to figure out how to use the data I got
+            //foreach (String Outercodefendantnumber in codefendantValues)
+            //{
+            //  String currentNumber = Outercodefendantnumber;
+
+            //  foreach (String InnerCodefendantNumber in codefendantValues) {
+            //    if (InnerCodefendantNumber.Equals(Outercodefendantnumber) && outerIndex != innerIndex) {
+            //      Logger.WriteToLog("Made it before addrelatedcase api call", LogLevel.Basic);
+            //      Logger.WriteToLog("outerIndex value = " + outerIndex.ToString(), LogLevel.Basic);
+            //      Logger.WriteToLog("innerIndex value = " + innerIndex.ToString(), LogLevel.Basic);
+            //      Logger.WriteToLog("Outer caseID " + caseIdValues.ElementAt(outerIndex).ToString(), LogLevel.Basic);
+            //      Logger.WriteToLog("Inner caseID " + caseIdValues.ElementAt(innerIndex).ToString(), LogLevel.Basic);
+            //      AddRelatedCase(caseIdValues.ElementAt(outerIndex).ToString(), caseIdValues.ElementAt(innerIndex).ToString());
+            //      //caseIdValues.RemoveAt(innerIndex);
+            //      //codefendantValues.RemoveAt(innerIndex);
+            //      //matched = true;
+            //      //continue;
+            //    }
+            //    innerIndex++;
+            //  }
+            //  //if (matched) {
+            //  //  caseIdValues.RemoveAt(outerIndex);
+            //  //  codefendantValues.RemoveAt(outerIndex);
+            //  //}
+            //  innerIndex = 0;
+            //  outerIndex++;
+
+            //}
+            ///////////////////////////////////////////////
+
+            List<String> relations = new List<string>();
+            foreach (Tuple<object, object> tup in tupleList)
+            {
+              Logger.WriteToLog("Current loop codefendant number = " + tup.Item2.ToString(), LogLevel.Basic);
+              if (!CrossReferenceNumber.Equals(tup.Item2.ToString()))
+              {
+                if (relations.Count != 0)
+                {
+                  Logger.WriteToLog("relations count = " + relations.Count.ToString(), LogLevel.Basic);
+                  foreach (String outerCaseID in relations)
+                  {
+                    foreach (String innerCaseID in relations)
+                    {
+                      if (innerCaseID.Equals(outerCaseID))
+                      {
+                        continue;
+                      }
+                      AddRelatedCase(outerCaseID, innerCaseID);
+                    }
+                  }
+                  relations.Clear();
+                }
+                relations.Add(tup.Item1.ToString());
+                CrossReferenceNumber = tup.Item2.ToString();
+                continue;
+              }
+              else
+              {
+                relations.Add(tup.Item1.ToString());
+              }
+            }
+
+            if (relations.Count != 0)
+            {
+              Logger.WriteToLog("relations count = " + relations.Count.ToString(), LogLevel.Basic);
+              foreach (String outerCaseID in relations)
+              {
+                foreach (String innerCaseID in relations)
+                {
+                  if (innerCaseID.Equals(outerCaseID))
+                  {
+                    continue;
+                  }
+                  AddRelatedCase(outerCaseID, innerCaseID);
+                }
+              }
+              relations.Clear();
+            }
+
+
+
+            var tupleReportList = new List<Tuple<object, object>> { };
+            DataSet dsr = GetReportDataSet(DateTime.Today, DateTime.Today);
+            DataTable dataTableReport = dsr.Tables[0];
+
+            Logger.WriteToLog($"DataTable Count: {dataTableReport.Rows.Count}", LogLevel.Verbose);
+
+
+            if (dataTableReport.Rows.Count > 0)
+            {
+
+              foreach (DataRow row in dataTableReport.Rows)
+              {
+                tupleReportList.Add(Tuple.Create(row["CaseNbr"], row["CrossReferenceNumber"]));
+              }
+
+
+              Logger.WriteToLog("---------Could Not Relate-----------", LogLevel.Basic);
+              Logger.WriteToLog("CaseNumber:                  DCN:   ", LogLevel.Basic);
+              foreach (Tuple<object,object> tup in tupleReportList)
+              {
+                Logger.WriteToLog($"{tup.Item1.ToString()}                  {tup.Item2.ToString()}", LogLevel.Basic);
+              }
+
+            }
+
+
+
+
+
+            }
+
+
+
+
+        }
+
+
+
       }
       catch (Exception e)
       {
+        Console.Write("Errored out");
         Context.Errors.Add(new BaseCustomException(e.Message));
       }
 
@@ -107,6 +289,7 @@ namespace RelateCoDefendantCasesJob
       entity.CaseNumber = Context.Parameters.CaseNumber;
 
       OdysseyMessage msg = new OdysseyMessage(entity.ToOdysseyMessageXml(), Context.SiteID);
+      Logger.WriteToLog("xml = " + entity.ToOdysseyMessageXml(), LogLevel.Basic);
       MessageHandlerFactory.Instance.ProcessMessage(msg);
 
       StringReader reader = new StringReader(msg.ResponseDocument.OuterXml);
@@ -116,21 +299,41 @@ namespace RelateCoDefendantCasesJob
       return result.CaseID;
     }
 
-    // Call with API Transaction
-    private string AddCaseEvent(string caseID)
+    private AddRelatedCaseResultEntity AddRelatedCase(String CaseID, String RelatedCaseID)
     {
-      Tyler.Odyssey.API.JobTemplate.AddCaseEventEntity entity = new Tyler.Odyssey.API.JobTemplate.AddCaseEventEntity();
-      entity.SetStandardAttributes(int.Parse(Context.Parameters.NodeID), "AddEvent", Context.UserID, "AddEvent", Context.SiteID);
-      entity.CaseID = caseID;
-      entity.CaseEventType = Context.Parameters.EventCode;
-      entity.Date = DateTime.Today.ToShortDateString();
+      Logger.WriteToLog("Got CaseID's " + CaseID + " and " + RelatedCaseID, LogLevel.Basic);
+      Tyler.Odyssey.API.JobTemplate.AddRelatedCaseEntity entity = new Tyler.Odyssey.API.JobTemplate.AddRelatedCaseEntity();
+      entity.SetStandardAttributes(int.Parse("200"), "AddRelatedCase", Context.UserID, "AddRelatedCase", Context.SiteID);
+      entity.ReferenceNumber = "AddRelatedCase";
+      entity.UserID = "1";
+      entity.CaseID = CaseID;
+      entity.RelatedCaseID = RelatedCaseID;
+      entity.Reason = "CD";
 
-      TransactionEntity txn = new TransactionEntity();
-      txn.TransactionType = "TylerAPIJobAddCaseEvent";
-      txn.Messages.Add(entity);
 
-      return ProcessTransaction(txn.ToOdysseyTransactionXML());
+      try
+      {
+        Logger.WriteToLog("xml = " + entity.ToOdysseyMessageXml(), LogLevel.Basic);
+        OdysseyMessage msg = new OdysseyMessage(entity.ToOdysseyMessageXml(), Context.SiteID);
+        MessageHandlerFactory.Instance.ProcessMessage(msg);
+
+        StringReader reader = new StringReader(msg.ResponseDocument.OuterXml);
+        XmlSerializer serializer = new XmlSerializer(typeof(Tyler.Odyssey.API.JobTemplate.AddRelatedCaseResultEntity));
+        Tyler.Odyssey.API.JobTemplate.AddRelatedCaseResultEntity result = (Tyler.Odyssey.API.JobTemplate.AddRelatedCaseResultEntity)serializer.Deserialize(reader);
+
+        return result;
+      }
+      catch (Exception e)
+      {
+        Logger.WriteToLog("AddRelatedCase Exception: " + e + '\n' + e.InnerException, LogLevel.Basic);
+        Tyler.Odyssey.API.JobTemplate.AddRelatedCaseResultEntity failedObject = new Tyler.Odyssey.API.JobTemplate.AddRelatedCaseResultEntity();
+        return failedObject;
+      }
+
     }
+
+
+
 
     // Process Transaction
     public string ProcessTransaction(string transXml)
@@ -176,6 +379,118 @@ namespace RelateCoDefendantCasesJob
 
       return txnResults;
     }
+
+
+
+
+
+    private DataSet GetSqlDataSet(DateTime? startDate, DateTime? endDate)
+    {
+      Logger.WriteToLog("Get SQL Data Set", LogLevel.Verbose);
+      string QUERY = createSQL(startDate, endDate);
+
+      Logger.WriteToLog("Sql query = " + QUERY, LogLevel.Basic);
+
+      CDBBroker broker = new CDBBroker(Context.SiteID);
+
+      var brokerConnection = broker.GetConnection("Justice");
+
+      DataSet ret = null;
+
+      SqlCommand cmd = new SqlCommand(string.Format(QUERY), brokerConnection as SqlConnection);
+
+      try
+      {
+        cmd.Connection.Open();
+
+        ret = CDBBroker.LoadDataSet(Context.SiteID, cmd, true);
+      }
+      finally
+      {
+        if (cmd != null)
+        {
+          cmd.Connection.Close();
+        }
+      }
+
+      return ret;
+
+    }
+
+
+
+    private DataSet GetReportDataSet(DateTime? startDate, DateTime? endDate)
+    {
+      Logger.WriteToLog("Get SQL Data Set", LogLevel.Verbose);
+      string QUERY = createSQLForReport(startDate, endDate);
+
+      Logger.WriteToLog("Sql query = " + QUERY, LogLevel.Basic);
+
+      CDBBroker broker = new CDBBroker(Context.SiteID);
+
+      var brokerConnection = broker.GetConnection("Justice");
+
+      DataSet ret = null;
+
+      SqlCommand cmd = new SqlCommand(string.Format(QUERY), brokerConnection as SqlConnection);
+
+      try
+      {
+        cmd.Connection.Open();
+
+        ret = CDBBroker.LoadDataSet(Context.SiteID, cmd, true);
+      }
+      finally
+      {
+        if (cmd != null)
+        {
+          cmd.Connection.Close();
+        }
+      }
+
+      return ret;
+
+    }
+
+    private string createSQL(DateTime? startDate, DateTime? endDate)
+    {
+      Logger.WriteToLog("Create SQL", LogLevel.Verbose);
+      TimeSpan ts = new TimeSpan(23, 59, 0);
+      endDate = endDate + ts;
+
+      string sql = "select * from ( select CCH.CaseID as CaseID, CCR.CrossReferenceNumber as CrossReferenceNumber from Justice.dbo.ClkCaseHdr CCH " +
+        "inner join Justice.dbo.CaseCrossReference CCR on CCR.CaseID = CCH.CaseID inner join Justice.dbo.CaseAssignHist CAH on CAH.CaseID = CCH.CaseID " +
+                $" where  (CCR.CrossReferenceTypeID = 90525 or CCR.CrossReferenceTypeID = 89761) and CCH.TimestampCreate between '{startDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
+            $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
+            ") x where CrossReferenceNumber in (select CCR.CrossReferenceNumber as CrossReferenceNumber from(select CaseID, TimestampCreate from Justice.dbo.CaseCrossReference CCR where CCR.CrossReferenceTypeID = '1454') CCH " +
+        "inner join Justice.dbo.CaseCrossReference CCR on CCR.CaseID = CCH.CaseID inner join Justice.dbo.CaseAssignHist CAH on CAH.CaseID = CCH.CaseID " +
+        $" where  (CCR.CrossReferenceTypeID = 90525 or CCR.CrossReferenceTypeID = 89761) and CCH.TimestampCreate between '{startDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
+            $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
+        "group by CrossReferenceNumber having count(*) > 1) order by CrossReferenceNumber";
+      return sql;
+    }
+
+     
+    private string createSQLForReport(DateTime? startDate, DateTime? endDate)
+    {
+      TimeSpan ts = new TimeSpan(23, 59, 0);
+      endDate = endDate + ts;
+      string sql = "select CAH.CaseNbr, CCR.CrossReferenceNumber from Justice.dbo.CaseAssignHist CAH " +
+                   "inner join Justice.dbo.CaseCrossReference CCR on CAH.CaseID = CCR.CaseID " +
+                   "where CAH.CaseID not in (select CaseID from Justice.dbo.CaseCrossReference CCR where CCR.CrossReferenceTypeID = 1454) " +
+                   $"and CAH.TimestampCreate between '{startDate.Value.ToString("MM / dd / yyyy HH: mm: ss")}'" +
+                   $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}' and CCR.CrossReferenceTypeID = '1453'";
+
+      return sql;
+    }
+
+
+
+
+
+
+
+
 
 
     private void AddInformationToJob()

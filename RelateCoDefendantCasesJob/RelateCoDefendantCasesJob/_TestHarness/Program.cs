@@ -9,6 +9,7 @@ namespace _TestHarness
   {
     static void Main(string[] args)
     {
+      Console.WriteLine("In the beginning of the job please print");
       JobTester test = new JobTester();
 
       try

@@ -8,7 +8,7 @@ namespace RelateCoDefendantCasesJob.Helpers
   public class Constants
   {
     // TODO: Change the site name to match the site you're working on.
-    public const string SiteName = "CARPINT";
+    public const string SiteName = "ILCOOKTEST1";
 
     // TODO:  Set the logging registry key to the name of your job.
     // The registry key provided here is what the job will look for in the following registry location:
