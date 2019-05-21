@@ -112,7 +112,7 @@ namespace RelateCoDefendantCasesJob
           Logger.WriteToLog($"Proposed End Date : {dtEnd.ToString()}", LogLevel.Verbose);
 
 
-        DataSet ds = GetSqlDataSet(DateTime.Today, DateTime.Today);
+        DataSet ds = GetSqlDataSet(dtStart,dtEnd);
         DataTable dataTable = ds.Tables[0];
 
         Logger.WriteToLog($"DataTable Count: {dataTable.Rows.Count}", LogLevel.Verbose);
@@ -135,42 +135,8 @@ namespace RelateCoDefendantCasesJob
 
             Logger.WriteToLog($"caseIDValues Count: {caseIdValues.Count}", LogLevel.Verbose);
             Logger.WriteToLog($"codefendantValues Count: {codefendantValues.Count}", LogLevel.Verbose);
-            int outerIndex = 0;
-            int innerIndex = 0;
-            bool matched = false;
             string CrossReferenceNumber = "";
-            string MasterCaseID = "";
 
-            //////////////////////////////////////
-            //Need to figure out how to use the data I got
-            //foreach (String Outercodefendantnumber in codefendantValues)
-            //{
-            //  String currentNumber = Outercodefendantnumber;
-
-            //  foreach (String InnerCodefendantNumber in codefendantValues) {
-            //    if (InnerCodefendantNumber.Equals(Outercodefendantnumber) && outerIndex != innerIndex) {
-            //      Logger.WriteToLog("Made it before addrelatedcase api call", LogLevel.Basic);
-            //      Logger.WriteToLog("outerIndex value = " + outerIndex.ToString(), LogLevel.Basic);
-            //      Logger.WriteToLog("innerIndex value = " + innerIndex.ToString(), LogLevel.Basic);
-            //      Logger.WriteToLog("Outer caseID " + caseIdValues.ElementAt(outerIndex).ToString(), LogLevel.Basic);
-            //      Logger.WriteToLog("Inner caseID " + caseIdValues.ElementAt(innerIndex).ToString(), LogLevel.Basic);
-            //      AddRelatedCase(caseIdValues.ElementAt(outerIndex).ToString(), caseIdValues.ElementAt(innerIndex).ToString());
-            //      //caseIdValues.RemoveAt(innerIndex);
-            //      //codefendantValues.RemoveAt(innerIndex);
-            //      //matched = true;
-            //      //continue;
-            //    }
-            //    innerIndex++;
-            //  }
-            //  //if (matched) {
-            //  //  caseIdValues.RemoveAt(outerIndex);
-            //  //  codefendantValues.RemoveAt(outerIndex);
-            //  //}
-            //  innerIndex = 0;
-            //  outerIndex++;
-
-            //}
-            ///////////////////////////////////////////////
 
             List<String> relations = new List<string>();
             foreach (Tuple<object, object> tup in tupleList)
@@ -222,9 +188,151 @@ namespace RelateCoDefendantCasesJob
             }
 
 
+            ///////////////////////////////////////////////////////////
+            ds = GetSqlDataSetForCaseUpgrades(dtStart, dtEnd);
+            dataTable = ds.Tables[0];
+
+            Logger.WriteToLog($"DataTable Count for upgraded cases: {dataTable.Rows.Count}", LogLevel.Verbose);
+
+            caseIdValues = new List<object>();
+            codefendantValues = new List<object>();
+
+            tupleList = new List<Tuple<object, object>> { };
+
+            if (dataTable.Rows.Count > 0)
+            {
+
+              foreach (DataRow row in dataTable.Rows)
+              {
+                caseIdValues.Add(row["CaseID"]);
+                codefendantValues.Add(row["CrossReferenceNumber"]);
+
+                tupleList.Add(Tuple.Create(row["CaseID"], row["CrossReferenceNumber"]));
+              }
+              foreach (Tuple<object, object> tup in tupleList)
+              {
+                Logger.WriteToLog("Current loop codefendant number = " + tup.Item2.ToString(), LogLevel.Basic);
+                if (!CrossReferenceNumber.Equals(tup.Item2.ToString()))
+                {
+                  if (relations.Count != 0)
+                  {
+                    Logger.WriteToLog("relations count = " + relations.Count.ToString(), LogLevel.Basic);
+                    foreach (String outerCaseID in relations)
+                    {
+                      foreach (String innerCaseID in relations)
+                      {
+                        if (innerCaseID.Equals(outerCaseID))
+                        {
+                          continue;
+                        }
+                        AddRelatedCase(outerCaseID, innerCaseID);
+                      }
+                    }
+                    relations.Clear();
+                  }
+                  relations.Add(tup.Item1.ToString());
+                  CrossReferenceNumber = tup.Item2.ToString();
+                  continue;
+                }
+                else
+                {
+                  relations.Add(tup.Item1.ToString());
+                }
+              }
+
+              if (relations.Count != 0)
+              {
+                Logger.WriteToLog("relations count = " + relations.Count.ToString(), LogLevel.Basic);
+                foreach (String outerCaseID in relations)
+                {
+                  foreach (String innerCaseID in relations)
+                  {
+                    if (innerCaseID.Equals(outerCaseID))
+                    {
+                      continue;
+                    }
+                    AddRelatedCase(outerCaseID, innerCaseID);
+                  }
+                }
+                relations.Clear();
+              }
+            }
+
+            //////////////////////////////////////////////////////////
+            ds = GetSqlDataSetForUpgradeToFelony(dtStart, dtEnd);
+            dataTable = ds.Tables[0];
+
+            Logger.WriteToLog($"DataTable Count for upgrade to felony cases: {dataTable.Rows.Count}", LogLevel.Verbose);
+
+            caseIdValues = new List<object>();
+            codefendantValues = new List<object>();
+
+            tupleList = new List<Tuple<object, object>> { };
+
+            if (dataTable.Rows.Count > 0)
+            {
+
+              foreach (DataRow row in dataTable.Rows)
+              {
+                caseIdValues.Add(row["CaseID"]);
+                codefendantValues.Add(row["CrossReferenceNumber"]);
+
+                tupleList.Add(Tuple.Create(row["CaseID"], row["CrossReferenceNumber"]));
+              }
+              foreach (Tuple<object, object> tup in tupleList)
+              {
+                Logger.WriteToLog("Current loop codefendant number = " + tup.Item2.ToString(), LogLevel.Basic);
+                if (!CrossReferenceNumber.Equals(tup.Item2.ToString()))
+                {
+                  if (relations.Count != 0)
+                  {
+                    Logger.WriteToLog("relations count = " + relations.Count.ToString(), LogLevel.Basic);
+                    foreach (String outerCaseID in relations)
+                    {
+                      foreach (String innerCaseID in relations)
+                      {
+                        if (innerCaseID.Equals(outerCaseID))
+                        {
+                          continue;
+                        }
+                        AddRelatedCase(outerCaseID, innerCaseID);
+                      }
+                    }
+                    relations.Clear();
+                  }
+                  relations.Add(tup.Item1.ToString());
+                  CrossReferenceNumber = tup.Item2.ToString();
+                  continue;
+                }
+                else
+                {
+                  relations.Add(tup.Item1.ToString());
+                }
+              }
+
+              if (relations.Count != 0)
+              {
+                Logger.WriteToLog("relations count = " + relations.Count.ToString(), LogLevel.Basic);
+                foreach (String outerCaseID in relations)
+                {
+                  foreach (String innerCaseID in relations)
+                  {
+                    if (innerCaseID.Equals(outerCaseID))
+                    {
+                      continue;
+                    }
+                    AddRelatedCase(outerCaseID, innerCaseID);
+                  }
+                }
+                relations.Clear();
+              }
+            }
+
+            //////////////////////////////////////////////////////////
+
 
             var tupleReportList = new List<Tuple<object, object>> { };
-            DataSet dsr = GetReportDataSet(DateTime.Today, DateTime.Today);
+            DataSet dsr = GetReportDataSet(dtStart, dtEnd);
             DataTable dataTableReport = dsr.Tables[0];
 
             Logger.WriteToLog($"DataTable Count: {dataTableReport.Rows.Count}", LogLevel.Verbose);
@@ -452,6 +560,74 @@ namespace RelateCoDefendantCasesJob
 
     }
 
+    private DataSet GetSqlDataSetForCaseUpgrades(DateTime? startDate, DateTime? endDate)
+    {
+      Logger.WriteToLog("Get SQL Data Set", LogLevel.Verbose);
+      string QUERY = createSQLForCaseUpgrades(startDate, endDate);
+
+      Logger.WriteToLog("Sql query = " + QUERY, LogLevel.Basic);
+
+      CDBBroker broker = new CDBBroker(Context.SiteID);
+
+      var brokerConnection = broker.GetConnection("Justice");
+
+      DataSet ret = null;
+
+      SqlCommand cmd = new SqlCommand(string.Format(QUERY), brokerConnection as SqlConnection);
+
+      try
+      {
+        cmd.Connection.Open();
+
+        ret = CDBBroker.LoadDataSet(Context.SiteID, cmd, true);
+      }
+      finally
+      {
+        if (cmd != null)
+        {
+          cmd.Connection.Close();
+        }
+      }
+
+      return ret;
+
+    }
+
+    private DataSet GetSqlDataSetForUpgradeToFelony(DateTime? startDate, DateTime? endDate)
+    {
+      Logger.WriteToLog("Get SQL Data Set", LogLevel.Verbose);
+      string QUERY = createSQLForUpgradeToFelony(startDate, endDate);
+
+      Logger.WriteToLog("Sql query = " + QUERY, LogLevel.Basic);
+
+      CDBBroker broker = new CDBBroker(Context.SiteID);
+
+      var brokerConnection = broker.GetConnection("Justice");
+
+      DataSet ret = null;
+
+      SqlCommand cmd = new SqlCommand(string.Format(QUERY), brokerConnection as SqlConnection);
+
+      try
+      {
+        cmd.Connection.Open();
+
+        ret = CDBBroker.LoadDataSet(Context.SiteID, cmd, true);
+      }
+      finally
+      {
+        if (cmd != null)
+        {
+          cmd.Connection.Close();
+        }
+      }
+
+      return ret;
+
+    }
+
+
+
     private string createSQL(DateTime? startDate, DateTime? endDate)
     {
       Logger.WriteToLog("Create SQL", LogLevel.Verbose);
@@ -460,11 +636,11 @@ namespace RelateCoDefendantCasesJob
 
       string sql = "select * from ( select CCH.CaseID as CaseID, CCR.CrossReferenceNumber as CrossReferenceNumber from Justice.dbo.ClkCaseHdr CCH " +
         "inner join Justice.dbo.CaseCrossReference CCR on CCR.CaseID = CCH.CaseID inner join Justice.dbo.CaseAssignHist CAH on CAH.CaseID = CCH.CaseID " +
-                $" where  (CCR.CrossReferenceTypeID = 90525 or CCR.CrossReferenceTypeID = 89761) and CCH.TimestampCreate between '{startDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
+                $" where  (CCR.CrossReferenceTypeID = 91674 or CCR.CrossReferenceTypeID = 89761) and CCH.TimestampCreate between '{startDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
             $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
             ") x where CrossReferenceNumber in (select CCR.CrossReferenceNumber as CrossReferenceNumber from(select CaseID, TimestampCreate from Justice.dbo.CaseCrossReference CCR where CCR.CrossReferenceTypeID = '1454') CCH " +
         "inner join Justice.dbo.CaseCrossReference CCR on CCR.CaseID = CCH.CaseID inner join Justice.dbo.CaseAssignHist CAH on CAH.CaseID = CCH.CaseID " +
-        $" where  (CCR.CrossReferenceTypeID = 90525 or CCR.CrossReferenceTypeID = 89761) and CCH.TimestampCreate between '{startDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
+        $" where  (CCR.CrossReferenceTypeID = 91674 or CCR.CrossReferenceTypeID = 89761) and CCH.TimestampCreate between '{startDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
             $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
         "group by CrossReferenceNumber having count(*) > 1) order by CrossReferenceNumber";
       return sql;
@@ -484,6 +660,47 @@ namespace RelateCoDefendantCasesJob
       return sql;
     }
 
+    private string createSQLForCaseUpgrades(DateTime? startDate, DateTime? endDate)
+    {
+      Logger.WriteToLog("Create SQL", LogLevel.Verbose);
+      TimeSpan ts = new TimeSpan(23, 59, 0);
+      endDate = endDate + ts;
+
+      string sql = "select distinct E.CaseID, E.CrossReferenceNumber from ((select A.* from Justice.dbo.CaseCrossReference A " +
+            "where A.CrossReferenceNumber in (SELECT CrossReferenceNumber " +
+                "FROM Justice.dbo.CaseCrossReference " +
+                $"where CrossReferenceTypeID = 1453 and TimestampCreate between '{startDate.Value.ToString("MM / dd / yyyy HH: mm: ss")}'" +
+                   $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}' " +
+                "GROUP BY CrossReferenceNumber " +
+                $"HAVING COUNT(*) > 1) and A.CrossReferenceTypeID = 1453 and TimestampCreate  between '{startDate.Value.ToString("MM / dd / yyyy HH: mm: ss")}'" +
+                   $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}' " +
+    ") E inner join " +
+    "(select D.* from Justice.dbo.CaseCrossReference D " +
+            "where D.CrossReferenceNumber in (SELECT CrossReferenceNumber " +
+                "FROM Justice.dbo.CaseCrossReference " +
+                $"where CrossReferenceTypeID = 1454 and TimestampCreate  between '{startDate.Value.ToString("MM / dd / yyyy HH: mm: ss")}'" +
+                   $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}' " +
+                "GROUP BY CrossReferenceNumber " +
+                $"HAVING COUNT(*) > 1) and D.CrossReferenceTypeID = 1454 and TimestampCreate  between '{startDate.Value.ToString("MM / dd / yyyy HH: mm: ss")}'" +
+                   $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}' " +
+    ") F " +
+    "on E.CaseID = F.CaseID "+
+    ")";
+      return sql;
+    }
+
+    private string createSQLForUpgradeToFelony(DateTime? startDate, DateTime? endDate)
+    {
+      Logger.WriteToLog("Create SQL", LogLevel.Verbose);
+      TimeSpan ts = new TimeSpan(23, 59, 0);
+      endDate = endDate + ts;
+
+      string sql = "select CAH.CaseID, CCR.CrossReferenceNumber from Justice.dbo.CaseCrossReference CCR " +
+        "inner join Justice.dbo.CaseAssignHist CAH on CCR.CrossReferenceNumber = CAH.CaseNbr " +
+        $"where CCR.CrossReferenceTypeID = 89761 and CCR.TimestampCreate between '{startDate.Value.ToString("MM / dd / yyyy HH: mm: ss")}'" +
+        $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'";
+      return sql;
+    }
 
 
 
@@ -493,7 +710,8 @@ namespace RelateCoDefendantCasesJob
 
 
 
-    private void AddInformationToJob()
+
+      private void AddInformationToJob()
     {
       int jobTaskID = 0;
       int jobProcessID = 0;
