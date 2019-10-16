@@ -149,7 +149,7 @@ namespace RelateCoDefendantCasesJob
                   Logger.WriteToLog("relations count = " + relations.Count.ToString(), LogLevel.Basic);
                   foreach (String outerCaseID in relations)
                   {
-                    foreach (String innerCaseID in relations)
+                    foreach (String innerCaseID in relations) 
                     {
                       if (innerCaseID.Equals(outerCaseID))
                       {
@@ -355,16 +355,7 @@ namespace RelateCoDefendantCasesJob
               }
 
             }
-
-
-
-
-
-            }
-
-
-
-
+          }
         }
 
 
@@ -418,7 +409,6 @@ namespace RelateCoDefendantCasesJob
       entity.RelatedCaseID = RelatedCaseID;
       entity.Reason = "CD";
 
-
       try
       {
         Logger.WriteToLog("xml = " + entity.ToOdysseyMessageXml(), LogLevel.Basic);
@@ -439,9 +429,6 @@ namespace RelateCoDefendantCasesJob
       }
 
     }
-
-
-
 
     // Process Transaction
     public string ProcessTransaction(string transXml)
@@ -489,28 +476,21 @@ namespace RelateCoDefendantCasesJob
     }
 
 
-
-
-
     private DataSet GetSqlDataSet(DateTime? startDate, DateTime? endDate)
     {
       Logger.WriteToLog("Get SQL Data Set", LogLevel.Verbose);
       string QUERY = createSQL(startDate, endDate);
-
       Logger.WriteToLog("Sql query = " + QUERY, LogLevel.Basic);
 
       CDBBroker broker = new CDBBroker(Context.SiteID);
-
       var brokerConnection = broker.GetConnection("Justice");
 
       DataSet ret = null;
-
       SqlCommand cmd = new SqlCommand(string.Format(QUERY), brokerConnection as SqlConnection);
 
       try
       {
         cmd.Connection.Open();
-
         ret = CDBBroker.LoadDataSet(Context.SiteID, cmd, true);
       }
       finally
@@ -522,7 +502,6 @@ namespace RelateCoDefendantCasesJob
       }
 
       return ret;
-
     }
 
 
@@ -568,17 +547,14 @@ namespace RelateCoDefendantCasesJob
       Logger.WriteToLog("Sql query = " + QUERY, LogLevel.Basic);
 
       CDBBroker broker = new CDBBroker(Context.SiteID);
-
       var brokerConnection = broker.GetConnection("Justice");
 
       DataSet ret = null;
-
       SqlCommand cmd = new SqlCommand(string.Format(QUERY), brokerConnection as SqlConnection);
 
       try
       {
         cmd.Connection.Open();
-
         ret = CDBBroker.LoadDataSet(Context.SiteID, cmd, true);
       }
       finally
@@ -601,17 +577,14 @@ namespace RelateCoDefendantCasesJob
       Logger.WriteToLog("Sql query = " + QUERY, LogLevel.Basic);
 
       CDBBroker broker = new CDBBroker(Context.SiteID);
-
       var brokerConnection = broker.GetConnection("Justice");
 
       DataSet ret = null;
-
       SqlCommand cmd = new SqlCommand(string.Format(QUERY), brokerConnection as SqlConnection);
 
       try
       {
         cmd.Connection.Open();
-
         ret = CDBBroker.LoadDataSet(Context.SiteID, cmd, true);
       }
       finally
@@ -623,10 +596,7 @@ namespace RelateCoDefendantCasesJob
       }
 
       return ret;
-
     }
-
-
 
     private string createSQL(DateTime? startDate, DateTime? endDate)
     {
@@ -635,14 +605,14 @@ namespace RelateCoDefendantCasesJob
       endDate = endDate + ts;
 
       string sql = "select * from ( select CCH.CaseID as CaseID, CCR.CrossReferenceNumber as CrossReferenceNumber from Justice.dbo.ClkCaseHdr CCH " +
-        "inner join Justice.dbo.CaseCrossReference CCR on CCR.CaseID = CCH.CaseID inner join Justice.dbo.CaseAssignHist CAH on CAH.CaseID = CCH.CaseID " +
+        "inner join Justice.dbo.CaseCrossReference CCR on CCR.CaseID = CCH.CaseID inner join Justice.dbo.CaseAssignHist CAH on CAH.CaseID = CCH.CaseID inner join Justice.dbo.CaseParty CP on CP.CaseID = CCH.CaseID" +
                 $" where  (CCR.CrossReferenceTypeID = 91674 or CCR.CrossReferenceTypeID = 89761) and CCH.TimestampCreate between '{startDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
             $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
             ") x where CrossReferenceNumber in (select CCR.CrossReferenceNumber as CrossReferenceNumber from(select CaseID, TimestampCreate from Justice.dbo.CaseCrossReference CCR where CCR.CrossReferenceTypeID = '1454') CCH " +
-        "inner join Justice.dbo.CaseCrossReference CCR on CCR.CaseID = CCH.CaseID inner join Justice.dbo.CaseAssignHist CAH on CAH.CaseID = CCH.CaseID " +
-        $" where  (CCR.CrossReferenceTypeID = 91674 or CCR.CrossReferenceTypeID = 89761) and CCH.TimestampCreate between '{startDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
-            $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'" +
-        "group by CrossReferenceNumber having count(*) > 1) order by CrossReferenceNumber";
+        "inner join Justice.dbo.CaseCrossReference CCR on CCR.CaseID = CCH.CaseID inner join Justice.dbo.CaseAssignHist CAH on CAH.CaseID = CCH.CaseID inner join Justice.dbo.CaseParty CP on CP.CaseID = CCH.CaseID " +
+        $" where  (CCR.CrossReferenceTypeID = 91674 or CCR.CrossReferenceTypeID = 89761) and CCH.TimestampCreate between '{startDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}' and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}' and CP.CasePartyID not in (select CasePartyID from Justice.dbo.CaseParty CP group by CP.CasePartyID having count(*) > 1)" +
+            $"" +
+        " group by CrossReferenceNumber having count(*) > 1) order by CrossReferenceNumber";
       return sql;
     }
 
@@ -685,7 +655,14 @@ namespace RelateCoDefendantCasesJob
                    $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}' " +
     ") F " +
     "on E.CaseID = F.CaseID "+
-    ")";
+    ") where (F.CrossReferenceNumber not in (select A.CrossReferenceNumber from Justice.dbo.CaseCrossReference A " +
+            "where A.CrossReferenceNumber in (SELECT CrossReferenceNumber " +
+                "FROM Justice.dbo.CaseCrossReference " +
+                $"where CrossReferenceTypeID = 91674 and TimestampCreate between '{startDate.Value.ToString("MM / dd / yyyy HH: mm: ss")}' " +
+                   $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}' " +
+                "GROUP BY CrossReferenceNumber " +
+               $"HAVING COUNT(*) > 1) and A.CrossReferenceTypeID = 91674 and TimestampCreate between '{startDate.Value.ToString("MM / dd / yyyy HH: mm: ss")}'" +
+                   $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'))";
       return sql;
     }
 
@@ -701,14 +678,6 @@ namespace RelateCoDefendantCasesJob
         $" and '{endDate.Value.ToString("MM/dd/yyyy HH:mm:ss")}'";
       return sql;
     }
-
-
-
-
-
-
-
-
 
 
       private void AddInformationToJob()
